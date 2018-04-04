@@ -1,0 +1,1775 @@
+Adapter for Recycler View
+==========================
+
+public class MyVehicleAdapter extends RecyclerView.Adapter<MyVehicleAdapter.MyViewHolder> {
+
+	public ArrayList<MyVehicleModel> myVehicleList;
+	private Context context;
+
+	public MyVehicleAdapter(Context context, ArrayList<MyVehicleModel> myVehicleList) {
+		this.myVehicleList = myVehicleList;
+		this.context = context;
+	}
+
+	public static class MyViewHolder extends RecyclerView.ViewHolder {
+		AppCompatImageView imageView;
+		AppCompatTextView carModel,lastServiceDate,upComingServiceDate,fuelType,totalKm,vehicleNumber;
+		public RelativeLayout view_background;
+		public MyViewHolder(View view) {
+			super(view);
+			imageView = view.findViewById(R.id.imageView);
+			lastServiceDate=view.findViewById(R.id.textViewLastServiceDate);
+			carModel= view.findViewById(R.id.tvCarModel);
+			upComingServiceDate=view.findViewById(R.id.textViewUpcomingServiceDate);
+			fuelType=view.findViewById(R.id.textViewFuelType);
+			totalKm=view.findViewById(R.id.textViewTotalKm);
+			vehicleNumber=view.findViewById(R.id.textVehicleNumber);
+		}
+	}
+
+
+	@Override
+	public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+		View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.custom_recycler_myvehicles, parent, false);
+		return new MyViewHolder(itemView);
+
+
+	}
+
+	@Override
+	public void onBindViewHolder(final MyViewHolder holder, final int position) {
+
+		MyVehicleModel myVehicleModel = myVehicleList.get(position);
+		holder.lastServiceDate.setText(myVehicleModel.getLastService());
+		holder.carModel.setText(myVehicleModel.getModel());
+		holder.fuelType.setText(myVehicleModel.getFuelType());
+		holder.upComingServiceDate.setText("-");
+		holder.totalKm.setText(myVehicleModel.getTotalKm().toString());
+		holder.vehicleNumber.setText(myVehicleModel.getVehicleNumber());
+		Glide.with(context)
+				.load(myVehicleModel.getBrandLogoId())
+				.apply(RequestOptions.circleCropTransform().circleCrop())
+				.into(holder.imageView);
+	}
+
+	@Override
+	public int getItemCount() {
+		return myVehicleList.size();
+	}
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+My Vehicle Activity
+====================
+
+
+public class ActivityMyVehicle extends AppCompatActivity {
+
+	RecyclerView recyclerViewMyVehicle;
+	Toolbar toolbarMyvehicle;
+	MyVehicleAdapter myVehicleAdapter;
+	PreferenceManager pm;
+	ArrayList<MyVehicleModel> myVehicleList = new ArrayList<>();
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_my_vehicle);
+		toolbarMyvehicle = findViewById(R.id.toolbarMyVehicle);
+		toolbarMyvehicle.setTitle(R.string.toolbar_title_myVehicle);
+		setSupportActionBar(toolbarMyvehicle);
+		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+		recyclerViewMyVehicle = findViewById(R.id.recyclerMyVehicle);
+		recyclerViewMyVehicle.setLayoutManager(new LinearLayoutManager(ActivityMyVehicle.this, LinearLayoutManager.VERTICAL, false));
+		new MyVehicleAsync().execute();
+		toolbarMyvehicle.setNavigationOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				finish();
+			}
+		});
+
+		/*ItemTouchHelper.SimpleCallback simpleItemTouchCallback = new ItemTouchHelper.SimpleCallback(0,  ItemTouchHelper.LEFT) {
+			@Override
+			public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
+				//awesome code when user grabs recycler card to reorder
+				return false;
+			}
+
+		*//*	@Override
+			public void clearView(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) {
+				super.clearView(recyclerView, viewHolder);
+				//awesome code to run when user drops card and completes reorder
+			}*//*
+
+			@Override
+			public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
+				//awesome code when swiping right to remove recycler card and delete SQLite data
+			}
+			@Override
+			public void onChildDraw(Canvas c, RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
+				super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+			}
+		};
+		ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleItemTouchCallback);
+		itemTouchHelper.attachToRecyclerView(recyclerViewMyVehicle);
+
+*/
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.my_vehicle_menu, menu);
+		return true;
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case R.id.menu_add:
+				Intent intentAddVehicle = new Intent(this, ActivityAddVehicles.class);
+				startActivity(intentAddVehicle);
+				break;
+			default:
+				break;
+		}
+		return true;
+	}
+
+	public class MyVehicleAsync extends AsyncTask<String, Void, String> {
+		ProgressDialog pdLoading = new ProgressDialog(ActivityMyVehicle.this);
+
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			pdLoading.setMessage("Please wait..");
+			pdLoading.setCancelable(false);
+			pdLoading.show();
+		}
+
+		@Override
+		protected String doInBackground(String... strings) {
+			pm = new PreferenceManager(ActivityMyVehicle.this);
+			try {
+
+
+				HashMap<String, String> passParams = new HashMap<>();
+
+				passParams.put("ifkuser_id", pm.getString(PreferenceManager.PREFS_USERID));
+			//		passParams.put("ifkuser_id", "612");
+				MultipartBody.Builder multipartBuilder = new MultipartBody.Builder();
+				multipartBuilder.setType(MultipartBody.FORM);
+
+				for (String key :
+						passParams.keySet()) {
+					multipartBuilder.addFormDataPart(key, passParams.get(key));
+				}
+
+
+				RequestBody requestBody = multipartBuilder.build();
+
+				final Request request = new Request.Builder()
+						.url(Constant.BASE_URL + "viewmyvehicles?token=" + pm.getString(PreferenceManager.PREFS_TOKEN))
+						.post(requestBody)
+						.build();
+
+				Response response = MultipartUtil.client.newCall(request).execute();
+				return response.body().string();
+
+			} catch (Exception e) {
+				return null;
+
+			}
+		}
+
+		@Override
+		protected void onPostExecute(String s) {
+			super.onPostExecute(s);
+			pdLoading.dismiss();
+			Log.e("Post data my vehicles", "PostData My vehicles" + s);
+
+			try {
+				if (s == null)
+					return;
+
+				JSONObject jsonObject = new JSONObject(s);
+				if (jsonObject.getString("status").equalsIgnoreCase("OK")) {
+
+					JSONObject innerObj = (JSONObject) jsonObject.get("result");
+					JSONArray jArray = innerObj.getJSONArray("VehicleDetails");
+					for (int i = 0; i < jArray.length(); i++) {
+
+						MyVehicleModel myVehicleModel = new MyVehicleModel();
+						JSONObject obj = jArray.getJSONObject(i);
+						int vehicleId = obj.getInt("ipkveh_id");
+						int userID = obj.getInt("ifkuser_id");
+						String brandLogo = obj.getString("vvehicle_brand_logo");
+						String modelName = obj.getString("vvehicle_model_name");
+						String lastService = obj.getString("dlast_service_on");
+						String vehicleFuelType = obj.getString("vveh_fueltype");
+						String typeId = String.valueOf(obj.getInt("ifkvehicle_type_id"));
+						int totalKm = obj.getInt("vveh_odometer");
+						String ownerShip = obj.getString("vveh_ownership");
+						String rcbookNo = obj.getString("vveh_rcbook_no");
+						String engineNo = obj.getString("vengine_no");
+						String vchachis_no = obj.getString("vchachis_no");
+						String vehicleNumber = obj.getString("vveh_number");
+
+						Log.e("data", "vehicle Id==>" + vehicleId + "\n" +
+								"UserId==>" + userID + "\n" +
+								"Brand Logo==>" + brandLogo + "\n" +
+								"model Name==>" + modelName + "\n" +
+								"Last Service==>" + lastService + "\n" +
+								"Fuel type==>" +
+								"" + vehicleFuelType + "\n" +
+								"Total Km==>" + totalKm + "\n" +
+								"Vehicle Number" + vehicleNumber);
+
+						myVehicleModel.setVehicleId(vehicleId);
+						myVehicleModel.setUserId(userID);
+						myVehicleModel.setBrandLogoId(brandLogo);
+						myVehicleModel.setModel(modelName);
+						myVehicleModel.setLastService(lastService);
+						myVehicleModel.setFuelType(vehicleFuelType);
+						myVehicleModel.setTotalKm(totalKm);
+						myVehicleModel.setVehicleNumber(vehicleNumber);
+						myVehicleList.add(myVehicleModel);
+
+					}
+
+
+					myVehicleAdapter = new MyVehicleAdapter(ActivityMyVehicle.this, myVehicleList);
+					recyclerViewMyVehicle.setAdapter(myVehicleAdapter);
+					myVehicleAdapter.notifyDataSetChanged();
+
+
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+
+	}
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Prefelistener (Interface)
+=========================
+
+
+interface PrefeListener {
+
+	void setString(String key, String value);
+	String getString(String key);
+
+	void setBoolean(String key, boolean value);
+	boolean getBoolean(String key);
+
+	/*void setInteger(String key,int value);
+	int getInteger(String key);
+
+	void setFloat(String key,float value);
+	float getFloat(String key);
+
+	void setLong(String key,long value);
+	float getLong(String key);*/
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Preference Manager Class
+=========================
+public class PreferenceManager {
+
+	public static final String MyPreferences = "myPrefs";
+	public static final String PREFS_TOKEN = "PREFS_TOKEN";
+	public static final String PREFS_USERID="PREFS_USERID";
+	public static final String PREFS_OTP="PREFS_OTP";
+	public static final String PREFS_NUMBER="PREFS_NUMBER";
+	public static final String PREFS_PASSWORD="PREFS_PASSWORD";
+	public static final String PREFS_USER_PROFILE_PIC = "PREFS_USER_PROFILE_PIC";
+	public static final String PREFS_First_NAME = "PREFS_First_NAME";
+	public static final String PREFS_LAST_NAME = "PREFS_LAST_NAME";
+	public static final String PREFS_MOBILE_NUMBER = "PREFS_MOBILE_NUMBER";
+	public static final String PREFS_COUNTRY = "PREFS_COUNTRY";
+	public static final String PREFS_STATE = "PREFS_STATE";
+	public static final String PREFS_CITY = "PREFS_CITY";
+
+
+	SharedPreferences sharedPreferences;
+	SharedPreferences.Editor editor;
+
+
+	public PreferenceManager(Context mContext) {
+		sharedPreferences = mContext.getSharedPreferences(MyPreferences, Context.MODE_PRIVATE);
+		editor = sharedPreferences.edit();
+	}
+
+
+	public void setString(String key, String value) {
+		editor.putString(key, value);
+		editor.commit();
+	}
+
+	public String getString(String key) {
+		return sharedPreferences.getString(key, "");
+	}
+
+	public void setBoolean(String key, boolean value) {
+		editor.putBoolean(key, value);
+
+	}
+
+	public boolean getBoolean(String key) {
+		return sharedPreferences.getBoolean(key, true);
+	}
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+MyWorkShopOneAdapter
+--------------------
+
+public class MyworkshopAdapter extends RecyclerView.Adapter<MyworkshopAdapter.MyViewHolder> {
+
+
+	public List<MyWorkshopModel> myworkshopList;
+	public Context context;
+	private boolean isPressed = false;
+	private int i = 0;
+
+	public class MyViewHolder extends RecyclerView.ViewHolder {
+
+		AppCompatTextView txtTextview;
+		AppCompatImageView imageView;
+		View lineBottom, lineLeft;
+		LinearLayout lindata;
+
+		public MyViewHolder(View view) {
+			super(view);
+
+			txtTextview = view.findViewById(R.id.txtTextview);
+			imageView = view.findViewById(R.id.imageTemp);
+			lindata = view.findViewById(R.id.linData);
+			lineBottom = view.findViewById(R.id.lineBottom);
+			lineLeft = view.findViewById(R.id.lineLeft);
+
+		}
+	}
+
+	public MyworkshopAdapter(List<MyWorkshopModel> myworkshopList, Context mContext) {
+
+		this.myworkshopList = myworkshopList;
+		this.context = mContext;
+	}
+
+	@Override
+	public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+		View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.custom_recycler_my_workshop, parent, false);
+		return new MyViewHolder(itemView);
+
+	}
+
+	@SuppressLint("ClickableViewAccessibility")
+	@Override
+	public void onBindViewHolder(final MyViewHolder holder, final int position) {
+		final MyWorkshopModel dataModel = myworkshopList.get(position);
+		holder.txtTextview.setText(dataModel.getTitle().toString());
+		holder.imageView.setImageResource(dataModel.getImage());
+		holder.lineLeft.setVisibility(i == position ? View.GONE : View.VISIBLE);
+
+		if (i == position)
+			i = i + 3;
+
+		if (myworkshopList.size() % 3 == 0) {
+			Log.e("True-->", "True-->");
+			holder.lineBottom.setVisibility(myworkshopList.size() - 3 > position
+					? View.VISIBLE : View.GONE);
+
+		} else {
+			Log.e("False-->", "False-->");
+			holder.lineBottom.setVisibility(
+					myworkshopList.size() - myworkshopList.size() % 3 < position + 1
+							? View.GONE : View.VISIBLE);
+		}
+
+		holder.lindata.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				isPressed = !isPressed;
+				if (isPressed) {
+					holder.imageView.setImageResource(dataModel.getImageHover());
+				} else {
+					holder.imageView.setImageResource(dataModel.getImage());
+				}
+			}
+		});
+
+	}
+
+
+	@Override
+	public int getItemCount() {
+		return myworkshopList.size();
+	}
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+===================
+For Image Uploading
+===================
+
+
+CameraPhoto
+------------
+
+public class CameraPhoto {
+
+	private File file;
+
+	public Intent getCameraIntent(Context context) {
+		Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+		file = new File(Environment.getExternalStorageDirectory(), System.currentTimeMillis() + ".jpg");
+		intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file));
+		return intent;
+	}
+
+	public File getFile() {
+		return file;
+	}
+}
+--------
+Constant
+--------
+
+public class Constant {
+
+	public static final int REQUEST_CAMERA = 101;
+	public static final int REQUEST_GALLERY = 102;
+
+}
+
+--------------
+MultipartUtil
+--------------
+
+public class MultipartUtil {
+
+	private static final String IMGUR_CLIENT_ID = "...";
+	public static final MediaType MEDIA_TYPE_PNG = MediaType.parse("image/*");
+
+	private static HttpLoggingInterceptor logging =
+			new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
+
+	public static OkHttpClient client = new OkHttpClient().newBuilder()
+			.connectTimeout(60 * 10, TimeUnit.SECONDS)
+			.readTimeout(60 * 10, TimeUnit.SECONDS).addInterceptor(logging)
+			.writeTimeout(60 * 10, TimeUnit.SECONDS).build();
+
+
+
+	/*client.setConnectTimeout(15, TimeUnit.SECONDS); // connect timeout
+	client.setReadTimeout(15, TimeUnit.SECONDS);    // socket timeout*/
+
+
+	public static String callMultipart(String url, HashMap<String, File> passingFiles, HashMap<String, String> passingParams) {
+
+		MultipartBody.Builder multipartBuilder = new MultipartBody.Builder();
+		multipartBuilder.setType(MultipartBody.FORM);
+
+		for (String key :
+				passingParams.keySet()) {
+			multipartBuilder.addFormDataPart(key, passingParams.get(key));
+		}
+
+		for (String key :
+				passingFiles.keySet()) {
+			File file = passingFiles.get(key);
+			multipartBuilder.addFormDataPart(key, file.getName(), RequestBody.create(MEDIA_TYPE_PNG, passingFiles.get(key)));
+		}
+
+
+		RequestBody requestBody = multipartBuilder.build();
+
+		Request request = new Request.Builder()
+				.url(Constant.BASE_URL + url)
+				.post(requestBody)
+				.build();
+
+
+		client.newCall(request).enqueue(new Callback() {
+			@Override
+			public void onFailure(Call call, IOException e) {
+				Log.w("CT_ :- ", "onFailure: ", e);
+
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException {
+				Log.w("CT_ :- ", "onResponse: " + response.body().string());
+
+			}
+		});
+
+		return "";
+	}
+
+
+}
+
+---------------------
+Add Vehicle Activity
+---------------------
+
+public class ActivityAddVehicles extends AppCompatActivity {
+
+	Toolbar toolbar;
+	EditText editDate, editTotalKm, editState, editStateNumber, editSeries, editVehicleNumber, editEngineNumber, editChachisNumber, editRcBookNumber, editOwnership;
+	Spinner spinnerSelectModel, spinnerSelectBrand;
+	TextView textViewSelectModel, textViewSelectBrand;
+	Button buttonRcBook, buttonAddVehiclesPhoto, buttonAddVehicleSubmit;
+	ImageView imageViewRCBook, imageViewDelete;
+	RecyclerView recyclerViewImageList;
+	AppCompatCheckBox chkPetrol, chkDiesel, chkCng, chkLpg, chkBattery;
+	private CameraPhoto cameraPhoto;
+	private int selectResourceId;
+	List<File> vehicleImageList = new ArrayList<>();
+	ImageAdapter imageAdapter;
+	String token, userId;
+	PreferenceManager pm;
+	ArrayList<BrandModel> vehicleBrandList = new ArrayList<>();
+	ArrayList<VehicleModel> vehicleModelList = new ArrayList<>();
+	ArrayList<VehicleModel> tempVehicleModelList = new ArrayList<>();
+	ArrayList<VehicleTypeModel> vehicletypeList = new ArrayList<>();
+	private ArrayAdapter arrayAdapter;
+
+	String brand, model, lastService, totalKm, vehicleNumber, engineNumber, chachisNumber,
+			rcBookNumber, ownerShip, fuelType = "", brandId, modelId;
+	public File rcBookImage;
+
+	@SuppressLint("WrongViewCast")
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_add_vehicles);
+		toolbar = findViewById(R.id.toolbar);
+		toolbar.setTitle(R.string.lable_toolbar_title);
+		setSupportActionBar(toolbar);
+		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+		pm = new PreferenceManager(ActivityAddVehicles.this);
+
+
+		initViews();
+
+
+		token = pm.getString(PreferenceManager.PREFS_TOKEN);
+		userId = pm.getString(PreferenceManager.PREFS_USERID);
+		Log.e("token", "value===>" + token);
+		//String url = "http://192.168.1.36/servicecro/Webservice/vehiclebrand?token=" + token;
+
+		String url = Constant.BASE_URL + "vehiclebrand?token=" + token;
+		final String modelUrl = Constant.BASE_URL + "model?token=" + token;
+		String urlVehicleType = Constant.BASE_URL + "VehicleType?token=" + token;
+
+
+		new VehicleModelAsync().execute(modelUrl);
+		new VehicleBrandAsync().execute(url);
+		new VehicleTypeAsync().execute(urlVehicleType);
+
+	}
+
+	private void initViews() {
+		buttonAddVehicleSubmit = findViewById(R.id.buttonAddVehiclesSubmit);
+		textViewSelectBrand = findViewById(R.id.txtSelectBrand);
+		textViewSelectModel = findViewById(R.id.txtSelectModel);
+		spinnerSelectBrand = findViewById(R.id.spnSelectBrand);
+		spinnerSelectModel = findViewById(R.id.spnSelectModel);
+		buttonRcBook = findViewById(R.id.buttonAddRcBook);
+		imageViewRCBook = findViewById(R.id.imageRC);
+		imageViewDelete = findViewById(R.id.imageCross);
+		editTotalKm = findViewById(R.id.edTotalKm);
+		editState = findViewById(R.id.edState);
+		editStateNumber = findViewById(R.id.edStateNumber);
+		editSeries = findViewById(R.id.edSeries);
+		editVehicleNumber = findViewById(R.id.edVehicleNumber);
+		editEngineNumber = findViewById(R.id.edEngineNumber);
+		editChachisNumber = findViewById(R.id.edChachisNumber);
+		editRcBookNumber = findViewById(R.id.edRCBookNumber);
+		chkPetrol = findViewById(R.id.chkPetrol);
+		chkDiesel = findViewById(R.id.chkDiesel);
+		chkCng = findViewById(R.id.chkCng);
+		chkLpg = findViewById(R.id.chkLpg);
+		chkBattery = findViewById(R.id.chkBattery);
+		editOwnership = findViewById(R.id.edOwnerShip);
+		imageViewDelete.setVisibility(View.GONE);
+		recyclerViewImageList = findViewById(R.id.recyclerImageList);
+		imageAdapter = new ImageAdapter(this, vehicleImageList);
+		recyclerViewImageList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+		recyclerViewImageList.setAdapter(imageAdapter);
+
+
+		toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				finish();
+			}
+		});
+		imageViewDelete.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				imageViewRCBook.setImageDrawable(null);
+				buttonRcBook.setVisibility(View.VISIBLE);
+				imageViewDelete.setVisibility(View.GONE);
+
+			}
+		});
+		buttonRcBook.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				selectResourceId = v.getId();
+				selectImage();
+			}
+		});
+		buttonAddVehiclesPhoto = findViewById(R.id.btnAddPhotoSecond);
+		buttonAddVehiclesPhoto.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				selectResourceId = v.getId();
+				selectImage();
+			}
+		});
+		buttonAddVehicleSubmit.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (spinnerSelectBrand.getSelectedItem().toString().equalsIgnoreCase("Select Brand")) {
+					Toast.makeText(ActivityAddVehicles.this, "Select Brand First", Toast.LENGTH_SHORT).show();
+				} else {
+					brand = spinnerSelectBrand.getSelectedItem().toString();
+					model = spinnerSelectModel.getSelectedItem().toString();
+					lastService = editDate.getText().toString();
+					totalKm = editTotalKm.getText().toString();
+					vehicleNumber = editState.getText().toString() +
+							editStateNumber.getText().toString() +
+							editSeries.getText().toString() +
+							editVehicleNumber.getText().toString();
+					engineNumber = editEngineNumber.getText().toString();
+					chachisNumber = editChachisNumber.getText().toString();
+					rcBookNumber = editRcBookNumber.getText().toString();
+					ownerShip = editOwnership.getText().toString();
+					if (chkPetrol.isChecked()) {
+						fuelType = "Petrol";
+					}
+					if (chkDiesel.isChecked()) {
+						fuelType += fuelType.equals("") ? "Diesel" : ",Diesel";
+					}
+					if (chkCng.isChecked()) {
+						fuelType += fuelType.equals("") ? "CNG" : ",CNG";
+					}
+					if (chkLpg.isChecked()) {
+						fuelType += fuelType.equals("") ? "LPG" : ",LPG";
+					}
+					if (chkBattery.isChecked()) {
+						fuelType += fuelType.equals("") ? "Battery" : ",Battery";
+					}
+
+					new AddVehicleDetail().execute();
+
+
+				}
+			}
+		});
+		editDate = findViewById(R.id.edDate);
+	//	SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+		//	editDate.setText(sdf.format(new Date())); //this will show the current date on edittext.
+		final Calendar myCalendar = Calendar.getInstance();
+		final DatePickerDialog.OnDateSetListener date = new DatePickerDialog.OnDateSetListener() {
+			@Override
+			public void onDateSet(DatePicker view, int year, int monthOfYear,
+								  int dayOfMonth) {
+				myCalendar.set(Calendar.YEAR, year);
+				myCalendar.set(Calendar.MONTH, monthOfYear);
+				myCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+				updateLabel();
+			}
+
+			private void updateLabel() {
+				String myFormat = "yyyy/MM/dd"; //In which you need put here
+				SimpleDateFormat sdf = new SimpleDateFormat(myFormat, Locale.US);
+				editDate.setText(sdf.format(myCalendar.getTime()));
+			}
+		};
+		editDate.setOnClickListener(new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				new DatePickerDialog(ActivityAddVehicles.this, date, myCalendar
+						.get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
+						myCalendar.get(Calendar.DAY_OF_MONTH)).show();
+			}
+		});
+
+
+		spinnerSelectBrand.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+			@Override
+			public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+				BrandModel model = vehicleBrandList.get(i);
+				setFilterData(String.valueOf(model.getVehicleId()));
+				brandId = (String.valueOf(model.getVehicleId()));
+				Log.e("modelId", "BrandId==>" + brandId);
+				spinnerSelectBrand.setSelection(vehicleBrandList.indexOf(0));
+
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> adapterView) {
+
+			}
+		});
+
+
+		spinnerSelectModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+			@Override
+			public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+				VehicleModel model = tempVehicleModelList.get(i);
+				modelId = (String.valueOf(model.getModelId()));
+				spinnerSelectModel.setSelection(vehicleModelList.indexOf(0));
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> adapterView) {
+
+			}
+		});
+
+
+		arrayAdapter = new ArrayAdapter(ActivityAddVehicles.this, android.R.layout.simple_spinner_dropdown_item, tempVehicleModelList);
+		spinnerSelectModel.setAdapter(arrayAdapter);
+		arrayAdapter.notifyDataSetChanged();
+
+	}
+
+	private void selectImage() {
+		cameraPhoto = new CameraPhoto();
+		final CharSequence[] options = {"Take Photo", "Choose from Gallery", "Cancel"};
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("Add Photo!");
+		builder.setItems(options, new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int item) {
+				if (options[item].equals("Take Photo")) {
+					startActivityForResult(cameraPhoto.getCameraIntent(ActivityAddVehicles.this), Constant.REQUEST_CAMERA);
+				} else if (options[item].equals("Choose from Gallery")) {
+					Intent intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+					startActivityForResult(intent, Constant.REQUEST_GALLERY);
+				} else if (options[item].equals("Cancel")) {
+					imageViewDelete.setVisibility(View.GONE);
+					dialog.dismiss();
+				}
+			}
+
+		});
+		builder.show();
+	}
+
+	public void setFilterData(String id) {
+		tempVehicleModelList.clear();
+		VehicleModel model1 = new VehicleModel();
+		model1.setModelName("Select Model");
+		tempVehicleModelList.add(model1);
+		for (VehicleModel model : vehicleModelList) {
+			if (String.valueOf(model.getBrandId()).equalsIgnoreCase(id)) {
+				tempVehicleModelList.add(model);
+			}
+			arrayAdapter.notifyDataSetChanged();
+		}
+	}
+
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+		super.onActivityResult(requestCode, resultCode, data);
+
+		if (resultCode == RESULT_OK) {
+			if (requestCode == Constant.REQUEST_CAMERA) {
+				File f = cameraPhoto.getFile();
+				try {
+					if (selectResourceId == buttonRcBook.getId()) {
+						BitmapFactory.Options bitmapOptions = new BitmapFactory.Options();
+						Bitmap bitmap = BitmapFactory.decodeFile(f.getAbsolutePath(), bitmapOptions);
+						imageViewRCBook.setImageBitmap(bitmap);
+
+						imageViewDelete.setVisibility(View.VISIBLE);
+						buttonRcBook.setVisibility(View.GONE);
+
+					} else {
+						vehicleImageList.add(f);
+						imageAdapter.notifyDataSetChanged();
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else if (requestCode == Constant.REQUEST_GALLERY) {
+				String picturePath = getPathFromUri(data.getData());
+				if (selectResourceId == buttonRcBook.getId()) {
+					rcBookImage = new File(picturePath);
+					Bitmap bitmap = BitmapFactory.decodeFile(picturePath);
+					imageViewRCBook.setImageBitmap(bitmap);
+					buttonRcBook.setVisibility(View.INVISIBLE);
+					imageViewDelete.setVisibility(View.VISIBLE);
+				} else {
+					vehicleImageList.add(new File(picturePath));
+					imageAdapter.notifyDataSetChanged();
+				}
+			}
+		}
+		setVisibilityAddBtn();
+	}
+
+	public void setVisibilityAddBtn() {
+		buttonAddVehiclesPhoto.setVisibility(vehicleImageList.size() == 5 ? View.GONE : View.VISIBLE);
+	}
+
+	private String getPathFromUri(Uri uri) {
+		String[] filePath = {MediaStore.Images.Media.DATA};
+		Cursor c = getContentResolver().query(uri, filePath, null, null, null);
+		c.moveToFirst();
+		int columnIndex = c.getColumnIndex(filePath[0]);
+		String picturePath = c.getString(columnIndex);
+		c.close();
+		return picturePath;
+	}
+
+	private class VehicleBrandAsync extends AsyncTask<String, String, String> {
+		OkHttpClient okHttpClient = new OkHttpClient();
+		ProgressDialog pdLoading = new ProgressDialog(ActivityAddVehicles.this);
+
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			pdLoading.setTitle("please wait...");
+			pdLoading.setCancelable(false);
+			pdLoading.show();
+		}
+
+		@Override
+		protected String doInBackground(String... params) {
+			Request.Builder builder = new Request.Builder();
+			builder.url(params[0]);
+			Request request = builder.build();
+			try {
+				okhttp3.Response response = okHttpClient.newCall(request).execute();
+				return response.body().string();
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(String result) {
+			super.onPostExecute(result);
+			pdLoading.dismiss();
+			Log.e("Demo", "data===>" + result);
+			if (result == null)
+				return;
+			try {
+				JSONObject mMainJsonObject = new JSONObject(result);
+				if (mMainJsonObject.getString("status").equalsIgnoreCase("OK")) {
+					JSONObject mInnerJsonObject = (JSONObject) mMainJsonObject.get("result");
+					JSONArray responseArray = mInnerJsonObject.getJSONArray("Response");
+					BrandModel brandModel1 = new BrandModel();
+					brandModel1.setBrandName("Select Brand");
+					vehicleBrandList.add(brandModel1);
+
+					for (int i = 0; i < responseArray.length(); i++) {
+						BrandModel brandModel = new BrandModel();
+						JSONObject jsonObject = responseArray.getJSONObject(i);
+						int id = jsonObject.getInt("ipkvehicle_brand_id");
+//						map.put(id,new ArrayList<VehicleModel>());
+						int typeId = jsonObject.getInt("ifktype_id");
+						String brandName = jsonObject.getString("vvehicle_brand_name");
+						String brandLogo = jsonObject.getString("vvehicle_brand_logo");
+						brandModel.setTypeId(typeId);
+						brandModel.setVehicleId(id);
+						brandModel.setBrandName(brandName);
+						brandModel.setBrandLogo(brandLogo);
+						vehicleBrandList.add(brandModel);
+
+//						Log.e("data", "vehicle_id==>" + jsonObject.getInt("ipkvehicle_brand_id") + "\n type==>" + jsonObject.getInt("ifktype_id") + "\nBrand_Name===>" + jsonObject.getString("vvehicle_brand_name") + "\nLogo===>" + jsonObject.getString("vvehicle_brand_logo"));
+					}
+					ArrayAdapter spinnerArrayAdapter = new ArrayAdapter(ActivityAddVehicles.this,
+							android.R.layout.simple_spinner_dropdown_item, vehicleBrandList);
+					spinnerSelectBrand.setAdapter(spinnerArrayAdapter);
+
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public class VehicleModelAsync extends AsyncTask<String, String, String> {
+		ProgressDialog pdLoading = new ProgressDialog(ActivityAddVehicles.this);
+		OkHttpClient okHttpClient1 = new OkHttpClient();
+
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			pdLoading.setTitle("Please wait..");
+			pdLoading.setCancelable(false);
+			pdLoading.show();
+		}
+
+		@Override
+		protected String doInBackground(String... strings) {
+			Request.Builder builder = new Request.Builder();
+			builder.url(strings[0]);
+			Request request1 = builder.build();
+			try {
+				okhttp3.Response response = okHttpClient1.newCall(request1).execute();
+				return response.body().string();
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(String result) {
+			pdLoading.dismiss();
+			super.onPostExecute(result);
+			try {
+
+				if (result == null)
+					return;
+
+				JSONObject jsonObject = new JSONObject(result);
+				if (jsonObject.getString("status").equalsIgnoreCase("OK")) {
+					JSONObject innerObj = (JSONObject) jsonObject.get("result");
+					JSONArray jArray = innerObj.getJSONArray("Response");
+					for (int i = 0; i < jArray.length(); i++) {
+						VehicleModel vehicleModel = new VehicleModel();
+						JSONObject obj = jArray.getJSONObject(i);
+						int modelId = obj.getInt("ipkdvehicle_model_id");
+						int brandId = obj.getInt("ifkvehicle_brand_id");
+						String modelName = obj.getString("vvehicle_model_name");
+						vehicleModel.setModelName(modelName);
+						vehicleModel.setModelId(modelId);
+						vehicleModel.setBrandId(brandId);
+						vehicleModelList.add(vehicleModel);
+
+						Log.e("model", "ModelId===>" + modelId + "\nBrandId" + brandId + "\nModelName==>" + modelName);
+					}
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/*public void laodAddVehicle() {
+		HashMap<String, File> fileHashMap = new HashMap<>();
+		if (rcBookImage != null)
+			fileHashMap.put("vveh_img", rcBookImage);
+		if (vehicleImageList != null && vehicleImageList.size() != 0)
+			fileHashMap.put("vveh_rctbookImage", vehicleImageList.get(0));
+
+		HashMap<String, String> passParams = new HashMap<>();
+		passParams.put("ifkuser_id", userId);
+		passParams.put("ifkdvehicle_model_id", modelId);
+		passParams.put("ifkvehicle_brand_id", brandId);
+		passParams.put("vveh_fueltype[]", fuelType);
+		passParams.put("dlast_service_on", lastService);
+		passParams.put("vveh_ownership", ownerShip);
+		passParams.put("vveh_rcbook_no", rcBookNumber);
+		passParams.put("vengine_no", engineNumber);
+		passParams.put("vchachis_no", chachisNumber);
+		passParams.put("vveh_number", vehicleNumber);
+
+
+		MultipartBody.Builder multipartBuilder = new MultipartBody.Builder();
+		multipartBuilder.setType(MultipartBody.FORM);
+
+		for (String key :
+				passParams.keySet()) {
+			multipartBuilder.addFormDataPart(key, passParams.get(key));
+		}
+
+		for (String key :
+				fileHashMap.keySet()) {
+			File file = fileHashMap.get(key);
+			multipartBuilder.addFormDataPart(key, file.getName(),
+					RequestBody.create(MultipartUtil.MEDIA_TYPE_PNG, fileHashMap.get(key)));
+		}
+
+
+		RequestBody requestBody = multipartBuilder.build();
+
+		final Request request = new Request.Builder()
+				.url(Constant.BASE_URL + "addvehicle?token=" + token)
+				.post(requestBody)
+				.build();
+
+
+		final ProgressDialog pdLoading = new ProgressDialog(this);
+		pdLoading.setMessage("Please wait while uploading....");
+		pdLoading.setCanceledOnTouchOutside(false);
+		pdLoading.show();
+		MultipartUtil.client.newCall(request).enqueue(new Callback() {
+			@Override
+			public void onFailure(Call call, IOException e) {
+				pdLoading.dismiss();
+				//Toast.makeText(ActivityAddVehicles.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+				Log.w("CT_ :- ", "onFailure: ", e);
+
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException {
+				pdLoading.dismiss();
+				//Toast.makeText(ActivityAddVehicles.this, request.toString(), Toast.LENGTH_SHORT).show();
+				try {
+					JSONObject jsonObject = new JSONObject(response.body().string());
+					Log.w("CT_ :- ", "onResponse: " + jsonObject.toString());
+				} catch (JSONException e) {
+					e.printStackTrace();
+				}
+
+			}
+		});
+	}*/
+
+	public class AddVehicleDetail extends AsyncTask<String, Void, String> {
+		ProgressDialog pdLoading = new ProgressDialog(ActivityAddVehicles.this);
+
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			pdLoading.setMessage("Please wait..");
+			pdLoading.setCancelable(false);
+			pdLoading.show();
+		}
+
+		@Override
+		protected String doInBackground(String... strings) {
+			try {
+
+				HashMap<String, File> fileHashMap = new HashMap<>(); // sending file to the server...
+				if (rcBookImage != null)
+					fileHashMap.put("vveh_img[]", rcBookImage);
+				if (vehicleImageList != null && vehicleImageList.size() != 0)
+					fileHashMap.put("vveh_rctbookImage[]", vehicleImageList.get(0));
+
+
+
+				HashMap<String, String> passParams = new HashMap<>();
+
+				passParams.put("ifkuser_id", userId);
+				passParams.put("ifkvehicle_type_id", "80");
+				passParams.put("ifkvehicle_brand_id", brandId);
+				passParams.put("ifkdvehicle_model_id", modelId);
+				passParams.put("vveh_fueltype[]", fuelType);
+				passParams.put("dlast_service_on", lastService);
+				passParams.put("vveh_ownership", ownerShip);
+				passParams.put("vveh_rcbook_no", rcBookNumber);
+				passParams.put("vengine_no", engineNumber);
+				passParams.put("vchachis_no", chachisNumber);
+				passParams.put("vveh_number", vehicleNumber);
+				passParams.put("vveh_odometer", totalKm);
+
+
+				MultipartBody.Builder multipartBuilder = new MultipartBody.Builder();
+				multipartBuilder.setType(MultipartBody.FORM);
+
+				for (String key :
+						passParams.keySet()) {
+					multipartBuilder.addFormDataPart(key, passParams.get(key));
+				}
+
+
+				if (rcBookImage != null)
+					multipartBuilder.addFormDataPart("vveh_rctbookImage[]", rcBookImage.getName(),
+							RequestBody.create(MultipartUtil.MEDIA_TYPE_PNG, rcBookImage));
+
+				if (vehicleImageList != null) {
+					for (int i = 0; i < vehicleImageList.size(); i++) {
+						multipartBuilder.addFormDataPart("vveh_img[]", vehicleImageList.get(i).getName(),
+								RequestBody.create(MultipartUtil.MEDIA_TYPE_PNG, vehicleImageList.get(i)));
+					}
+				}
+
+
+				RequestBody requestBody = multipartBuilder.build();
+
+				final Request request = new Request.Builder()
+						.url(Constant.BASE_URL + "addvehicle?token=" + token)
+						.post(requestBody)
+						.build();
+
+				Response response = MultipartUtil.client.newCall(request).execute();
+				return response.body().string();
+
+			} catch (Exception e) {
+				return null;
+
+			}
+		}
+
+		@Override
+		protected void onPostExecute(String s) {
+			super.onPostExecute(s);
+			pdLoading.dismiss();
+
+			Log.e("Post data", "PostData" + s);
+
+			try {
+				if (s == null)
+					return;
+
+				JSONObject jsonObject = new JSONObject(s);
+				if (jsonObject.getString("status").equalsIgnoreCase("OK")) {
+
+					Toast.makeText(ActivityAddVehicles.this, "Vehicle Successfully Add", Toast.LENGTH_SHORT).show();
+					startActivity(new Intent(ActivityAddVehicles.this, ActivityMyVehicle.class));
+				} else if (jsonObject.getString("status").equalsIgnoreCase("NOK")) {
+					Toast.makeText(ActivityAddVehicles.this, "This Vehicle is Already exists!!!", Toast.LENGTH_SHORT).show();
+				} else {
+					Toast.makeText(ActivityAddVehicles.this, "Something Went Wrong", Toast.LENGTH_SHORT).show();
+				}
+
+
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	public class VehicleTypeAsync extends AsyncTask<String, String, String> {
+		OkHttpClient okHttpClient1 = new OkHttpClient();
+
+		@Override
+		protected String doInBackground(String... strings) {
+			Request.Builder builder = new Request.Builder();
+			builder.url(strings[0]);
+			Request request1 = builder.build();
+			try {
+				okhttp3.Response response = okHttpClient1.newCall(request1).execute();
+				return response.body().string();
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+			return null;
+		}
+
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+		}
+
+		@Override
+
+
+		protected void onPostExecute(String result) {
+			super.onPostExecute(result);
+			//		Log.e("response", "response" + result);
+			try {
+
+				if (result == null)
+					return;
+
+				JSONObject jsonObject = new JSONObject(result);
+				if (jsonObject.getString("status").equalsIgnoreCase("OK")) {
+					JSONObject innerObj = (JSONObject) jsonObject.get("result");
+					JSONArray jArray = innerObj.getJSONArray("VehicleType");
+
+					for (int i = 0; i < jArray.length(); i++) {
+						VehicleTypeModel vehicleTypeModel = new VehicleTypeModel();
+						JSONObject obj = jArray.getJSONObject(i);
+						int type_Id = obj.getInt("ipkvehicle_type_id");
+						String type_Name = obj.getString("vvehicle_type_name");
+						String type_Image = obj.getString("vvehicle_type_image");
+						vehicleTypeModel.setTypeId(type_Id);
+						vehicleTypeModel.setTypeName(type_Name);
+						vehicleTypeModel.setTypeImage(type_Image);
+						Log.e("VehicleType", "VehicleTypeId===>" + type_Id + "\nName" + type_Name + "\ntypeImage==>" + type_Image);
+						vehicletypeList.add(vehicleTypeModel);
+
+					}
+
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+
+
+		}
+	}
+
+
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Gradle App Module
+=================
+
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 27
+    defaultConfig {
+        applicationId "addon.com.automobileservice"
+        minSdkVersion 17
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation 'com.android.support:appcompat-v7:27.0.2'
+    implementation 'com.android.support:support-v4:27.0.2'
+    implementation 'com.android.support:design:27.0.2'
+    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+    implementation 'com.google.android.gms:play-services-maps:11.8.0'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+    compile 'com.intuit.sdp:sdp-android:1.0.5'
+    compile 'com.android.support:cardview-v7:27.0.2'
+    compile 'com.android.support:recyclerview-v7:27.0.2'
+    implementation 'com.github.bumptech.glide:glide:4.5.0'
+    compile 'me.zhanghai.android.materialratingbar:library:1.2.0'
+    compile 'com.squareup.okhttp3:okhttp:3.4.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+    implementation 'com.squareup.okhttp3:logging-interceptor:3.9.0'
+    compile 'ru.rambler.android:swipe-layout:1.0.14'
+
+}
+
+========================================================================================================================================
+
+--------------------
+For SQLITE DataBase 
+--------------------
+
+ActivityFirst
+=============
+
+public class First extends AppCompatActivity implements View.OnClickListener {
+
+	EditText FirstName, LastName;
+	RadioButton Male, Female;
+	RadioGroup Gender;
+	CheckBox Sports, Music, Reading;
+	Button Next;
+	String gender, hobbies = "";
+
+	private static String TAG = "SecondActivity";
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.first);
+
+
+		FirstName = (EditText) findViewById(R.id.txtFirstName);
+		LastName = (EditText) findViewById(R.id.txtLastName);
+		Male = (RadioButton) findViewById(R.id.radioMale);
+		Female = (RadioButton) findViewById(R.id.radioFemale);
+		Gender = (RadioGroup) findViewById(R.id.radiogroupGender);
+		Sports = (CheckBox) findViewById(R.id.checkSport);
+		Music = (CheckBox) findViewById(R.id.checkMusic);
+		Reading = (CheckBox) findViewById(R.id.checkReading);
+		Next = (Button) findViewById(R.id.ButtonNext);
+		Next.setOnClickListener(this);
+
+		if (getIntent().hasExtra("id")) {
+			Intent i = getIntent();
+			FirstName.setText(i.getStringExtra("firstname").toString());
+			LastName.setText(i.getStringExtra("lastname").toString());
+			gender = i.getStringExtra("gender");
+
+			if (gender.equals("Male")) {
+				Male.setChecked(true);
+			}
+			if (gender.equals("Female")) {
+				Female.setChecked(true);
+			}
+			hobbies = i.getStringExtra("hobbies");
+			if (hobbies.equals("sports")) {
+				Sports.setChecked(true);
+			}
+			if (hobbies.equals("music")) {
+				Music.setChecked(true);
+			}
+			if (hobbies.equals("reading")) {
+				Reading.setChecked(true);
+			}
+			if (hobbies.equals("sports,reading")) // Sports,reading
+			{
+				Sports.setChecked(true);
+				Reading.setChecked(true);
+			}
+
+			if (hobbies.equals("music,reading")) // reading,music
+			{
+				Reading.setChecked(true);
+				Music.setChecked(true);
+			}
+			if (hobbies.equals("sports,music")) {
+
+				Music.setChecked(true);
+				Sports.setChecked(true);
+			}
+			if (hobbies.equals("sports,music,reading")) {
+				Sports.setChecked(true);
+				Reading.setChecked(true);
+				Music.setChecked(true);
+			}
+		}
+
+
+		Gender.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(RadioGroup group, @IdRes int checkedId) {
+
+				if (checkedId == R.id.radioMale) {
+					gender = "Male";
+				} else {
+					gender = "Female";
+				}
+			}
+
+		});
+	}
+
+
+	@Override
+	public void onClick(View v) {
+
+		hobbies = "";
+		String prfix = "";
+		if (Sports.isChecked()) {
+			hobbies += prfix;
+			prfix = ",";
+			hobbies += "sports";
+		}
+		if (Music.isChecked()) {
+			hobbies += prfix;
+			prfix = ",";
+			hobbies += "music";
+		}
+		if (Reading.isChecked()) {
+			hobbies += prfix;
+			hobbies += "reading";
+		}
+
+		Intent i = new Intent(this, Second.class); // send data to another activity for add data..
+		i.putExtra("First Name", FirstName.getText().toString());
+		i.putExtra("Last Name", LastName.getText().toString());
+		i.putExtra("gender", gender);
+		i.putExtra("hobbies", hobbies);
+
+		if (getIntent().hasExtra("id")) {
+			i.putExtra("id1", getIntent().getIntExtra("id", 0)); //if the value is there.. it will pass to the next activtity
+		/*	i.putExtra("firstname1", getIntent().getStringExtra("firstname"));
+			i.putExtra("lastname1", getIntent().getStringExtra("lastname"));
+			i.putExtra("gender1", getIntent().getStringExtra("gender"));
+			i.putExtra("hobbies1", getIntent().getStringExtra("hobbies"));*/
+			i.putExtra("textcolor1", getIntent().getStringExtra("textcolor"));
+			i.putExtra("backcolor1", getIntent().getStringExtra("backcolor"));
+		}
+		startActivity(i);
+	}
+
+
+}
+
+---------------
+ActivitySecond
+---------------
+
+
+public class Second extends AppCompatActivity implements View.OnClickListener {
+
+	DatabaseHelper mDatabasehelper;
+	Button add, show, update;
+	RadioGroup radioText, radioBack;
+	RadioButton radioTextRed, radioTextGreen, radioTextBlue, radioBackRed, radioBackGreen, radioBackBlue;
+	String firstname, lastname, gender, hobbies, textcolor, backcolor; // declaring the variable for add data
+	int id1;//declaring the variable for update the data
+
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_second);
+		mDatabasehelper = new DatabaseHelper(this);
+
+		Intent i = getIntent();
+		firstname = i.getStringExtra("First Name");  // getting value from a the first Activity for add data..
+		lastname = i.getStringExtra("Last Name");
+		gender = i.getStringExtra("gender");
+		hobbies = i.getStringExtra("hobbies");
+		radioText = (RadioGroup) findViewById(R.id.radiogroupTextColor);
+		radioBack = (RadioGroup) findViewById(R.id.radiogroupBackColor);
+		radioTextRed = (RadioButton) findViewById(R.id.radioTextRed);
+		radioTextGreen = (RadioButton) findViewById(R.id.radioTextGreen);
+		radioTextBlue = (RadioButton) findViewById(R.id.radioTextBlue);
+		radioBackRed = (RadioButton) findViewById(R.id.radioBackRed);
+		radioBackGreen = (RadioButton) findViewById(R.id.radioBackGreen);
+		radioBackBlue = (RadioButton) findViewById(R.id.radioBackBlue);
+		add = (Button) findViewById(R.id.buttonAdd);
+		show = (Button) findViewById(R.id.buttonShow);
+		update = (Button) findViewById(R.id.buttonUpdate1);
+		add.setOnClickListener(this);
+		show.setOnClickListener(this);
+		update.setOnClickListener(this);
+
+
+		if (getIntent().hasExtra("id1")) {
+			id1 = i.getIntExtra("id1",0);
+			textcolor = i.getStringExtra("textcolor1");
+			backcolor = i.getStringExtra("backcolor1");
+				if (textcolor.equals("Red")) {
+			radioTextRed.setChecked(true);
+		} else if (textcolor.equals("Green")) {
+			radioTextGreen.setChecked(true);
+		} else {
+			radioTextBlue.setChecked(true);
+		}
+
+		if (backcolor.equals("Red")) {
+			radioBackRed.setChecked(true);
+		} else if (backcolor.equals("Green")) {
+			radioBackGreen.setChecked(true);
+		} else {
+			radioBackBlue.setChecked(true);
+		}
+
+		}
+
+
+		radioText.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(RadioGroup group, @IdRes int checkedId) {
+
+				if (checkedId == R.id.radioTextRed) {
+					textcolor = "Red";
+				} else if (checkedId == R.id.radioTextGreen) {
+					textcolor = "Green";
+				} else if (checkedId == R.id.radioTextBlue) {
+					textcolor = "Blue";
+				}
+			}
+		});
+
+		radioBack.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(RadioGroup group, @IdRes int checkedId) {
+
+				if (checkedId == R.id.radioBackRed) {
+					backcolor = "Red";
+					//getWindow().getDecorView().setBackgroundColor(Color.parseColor("#FF0000"));
+				} else if (checkedId == R.id.radioBackGreen) {
+					backcolor = "Green";
+				} else if (checkedId == R.id.radioBackBlue) {
+					backcolor = "Blue";
+				}
+
+			}
+		});
+
+
+	}
+
+	public void addData(String firstname, String lastname, String gender, String hobbies, String textcolor, String backcolor) {
+		boolean insertData = mDatabasehelper.addData(firstname, lastname, gender, hobbies, textcolor, backcolor);
+		if (insertData) {
+			Toast.makeText(this, "Data Successfully Inserted", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(this, "Data not Inserted Successfully", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	public void updateData(int id1, String firstname, String lastname, String gender, String hobbies, String textcolor, String backcolor) {
+
+		boolean updatedata = mDatabasehelper.updateData(id1, firstname, lastname, gender, hobbies, textcolor, backcolor);
+		if (updatedata) {
+			Toast.makeText(this, "Data Successfully Updated", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(this, "Data not Update Successfully", Toast.LENGTH_SHORT).show();
+		}
+
+	}
+
+
+	@Override
+	public void onClick(View v) {
+
+		switch (v.getId()) {
+
+			case R.id.buttonAdd:
+				addData(firstname, lastname, gender, hobbies, textcolor, backcolor);  // use the parameter as above we declare variables for the add data
+				break;
+
+			case R.id.buttonShow:
+				Intent in = new Intent(this, Show.class);
+				startActivity(in);
+				break;
+
+			case R.id.buttonUpdate1:
+				updateData(id1, firstname, lastname, gender, hobbies, textcolor, backcolor);  //use the parameter as above we declare variables for the update data
+
+		}
+
+	}
+
+
+}
+
+-----------------
+ActivityShow
+-----------------
+
+public class Show extends AppCompatActivity {
+
+	DatabaseHelper myDB;
+
+
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_show);
+
+//		delete = (Button) findViewById(R.id.buttonDelete);
+//		delete.setOnClickListener();
+
+		ListView listView = (ListView) findViewById(R.id.listview);
+		myDB = new DatabaseHelper(this);
+
+		ArrayList<StudInfo> lstdata = myDB.getData();
+
+
+		StudInfoAdapter studInfoAdapter = new StudInfoAdapter(this, lstdata);
+		listView.setAdapter(studInfoAdapter);
+
+
+
+	}
+}
+
+----------------------------
+StudInfoAdapter (List View)
+----------------------------
+
+class StudInfoAdapter extends BaseAdapter {
+
+	private ArrayList<StudInfo> studentInfoList;
+	private LayoutInflater layoutInflater;
+	private Context context;
+//	String id, firstname, lastname, gender, hobbies, textcolor, backcolor;
+
+
+	StudInfoAdapter(Show context, ArrayList<StudInfo> studentInfoList) {
+
+		this.studentInfoList = studentInfoList;
+		layoutInflater = LayoutInflater.from(context);
+		this.context = context;
+
+	}
+
+
+	@Override
+	public int getCount() {
+		return studentInfoList.size();
+	}
+
+
+	@Override
+	public Object getItem(int i) {
+		return null;
+	}
+
+	@Override
+	public long getItemId(int i) {
+		return 0;
+	}
+
+	@Override
+	public View getView(final int position, View convertView, ViewGroup viewGroup) {
+		final ViewHolder holder;
+
+		if (convertView == null) {
+			convertView = layoutInflater.inflate(R.layout.list_item_studinfo, null);
+			holder = new ViewHolder(convertView);
+			convertView.setTag(holder);
+		} else {
+			holder = (ViewHolder) convertView.getTag();
+		}
+
+		final String backcolor = studentInfoList.get(position).getBackcolor();
+		holder.update.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+
+				Intent i = new Intent(context, First.class);
+
+				Log.e("Data-->", String.valueOf(studentInfoList.get(position).getId()));
+				Log.e("Hobbies-->", String.valueOf(studentInfoList.get(position).getHobbies()));
+				Log.e("Background-->", String.valueOf(backcolor));
+				Log.e("Text-->", String.valueOf(studentInfoList.get(position).getTextcolor()));
+				i.putExtra("id", studentInfoList.get(position).getId()); // Send Id to first Activity for updating data..
+				i.putExtra("firstname", studentInfoList.get(position).getFirstname()); // Send Id to first Activity for updating data..
+				i.putExtra("lastname", studentInfoList.get(position).getLastname()); // Send Id to first Activity for updating data..
+				i.putExtra("gender", studentInfoList.get(position).getGender());  // Send Id to first Activity for updating data..
+				i.putExtra("hobbies", studentInfoList.get(position).getHobbies()); // Send Id to first Activity for updating data..
+				i.putExtra("textcolor", studentInfoList.get(position).getTextcolor()); // Send Id to first Activity for updating data..
+				i.putExtra("backcolor", backcolor); // Send Id to first Activity for updating data..
+
+				context.startActivity(i);
+			}
+		});
+
+
+		String back = backcolor;
+		if(back.equals("Green"))
+		{
+			holder.relativeLayout.setBackgroundColor(context.getResources().getColor(R.color.colorGreen));
+		}
+		if(back.equals("Blue"))
+		{
+			holder.relativeLayout.setBackgroundColor(context.getResources().getColor(R.color.colorRed));
+		}
+
+		if (backcolor.equals("Blue"))
+		{
+			holder.relativeLayout.setBackgroundColor(context.getResources().getColor(R.color.colorBlue));
+		}
+
+		//holder.relativeLayout.setBackgroundColor(context.getResources().getColor(R.color.colorRed));
+		String text = studentInfoList.get(position).getTextcolor();
+		if(text.equals("Red"))  // Setting Background Color red For that record where Textcolor Radio checked as a Red
+		{
+			holder.txtfirstname.setTextColor(context.getResources().getColor(R.color.colorRed));
+			holder.txtlastname.setTextColor(context.getResources().getColor(R.color.colorRed));
+			holder.txtgender.setTextColor(context.getResources().getColor(R.color.colorRed));
+			holder.txthobbies.setTextColor(context.getResources().getColor(R.color.colorRed));
+			holder.txttextcolor.setTextColor(context.getResources().getColor(R.color.colorRed));
+			holder.txtbackcolor.setTextColor(context.getResources().getColor(R.color.colorRed));
+		}
+		if(text.equals("Blue"))   // Setting Background Color Blue For that record where Textcolor Radio checked as a Blue
+		{
+			holder.txtfirstname.setTextColor(context.getResources().getColor(R.color.colorBlue));
+			holder.txtlastname.setTextColor(context.getResources().getColor(R.color.colorBlue));
+			holder.txtgender.setTextColor(context.getResources().getColor(R.color.colorBlue));
+			holder.txthobbies.setTextColor(context.getResources().getColor(R.color.colorBlue));
+			holder.txttextcolor.setTextColor(context.getResources().getColor(R.color.colorBlue));
+			holder.txtbackcolor.setTextColor(context.getResources().getColor(R.color.colorBlue));
+		}
+		if(text.equals("Green"))  // Setting Background Color Green For that record where Textcolor Radio checked as a Green
+		{
+			holder.txtfirstname.setTextColor(context.getResources().getColor(R.color.colorGreen));
+			holder.txtlastname.setTextColor(context.getResources().getColor(R.color.colorGreen));
+			holder.txtgender.setTextColor(context.getResources().getColor(R.color.colorGreen));
+			holder.txthobbies.setTextColor(context.getResources().getColor(R.color.colorGreen));
+			holder.txttextcolor.setTextColor(context.getResources().getColor(R.color.colorGreen));
+			holder.txtbackcolor.setTextColor(context.getResources().getColor(R.color.colorGreen));
+		}
+
+
+
+		holder.txtfirstname.setText(studentInfoList.get(position).getFirstname());  // Setting Text for FirstName in Listview
+		holder.txtlastname.setText(studentInfoList.get(position).getLastname());	// Setting Text for LastName in Listview
+		holder.txtgender.setText(studentInfoList.get(position).getGender());		// Setting Text for Gender in Listview
+		holder.txthobbies.setText(studentInfoList.get(position).getHobbies());		// Setting Text for Hobbies in Listview
+		holder.txttextcolor.setText(studentInfoList.get(position).getTextcolor());// Setting Text for Textcolor in Listview
+		holder.txtbackcolor.setText(backcolor);	// Setting Text for Backcolor in Listview
+		holder.delete.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (delete_byID(studentInfoList.get(position).getId())) {  // studInfoList.get(position).getId() use for get the id
+					studentInfoList.remove(position);
+					notifyDataSetChanged();
+				}
+			}
+		});
+		return convertView;
+	}
+
+
+	public boolean delete_byID(int id) {
+		DatabaseHelper db = new DatabaseHelper(context);
+		boolean deleteData = db.delete_byID(id);
+		if (deleteData) {
+			Toast.makeText(context, "Data Deleted Successfully", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(context, "Try again!!!", Toast.LENGTH_SHORT).show();
+		}
+		return deleteData;
+	}
+
+	/*public void updateData(String id,String firstname, String lastname, String gender, String hobbies, String textcolor, String backcolor) {
+		DatabaseHelper myDb = new DatabaseHelper(context);
+		boolean updatedata = myDb.updateData(id,firstname, lastname, gender, hobbies, textcolor, backcolor);
+		if (updatedata) {
+			Toast.makeText(context, "Data Successfully Updated", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(context, "Data not Update Successfully", Toast.LENGTH_SHORT).show();
+		}
+
+	}*/
+
+	private class ViewHolder {
+		AppCompatTextView txtfirstname;
+		AppCompatTextView txtlastname;
+		AppCompatTextView txtgender;
+		AppCompatTextView txthobbies;
+		AppCompatTextView txttextcolor;
+		AppCompatTextView txtbackcolor;
+		Button delete;
+		Button update;
+		RelativeLayout relativeLayout;
+
+
+		ViewHolder(View convertView) {
+			txtfirstname = convertView.findViewById(R.id.txtfirstname);
+			txtlastname = convertView.findViewById(R.id.txtlastname);
+			txtgender = convertView.findViewById(R.id.txtgender);
+			txthobbies = convertView.findViewById(R.id.txthobbies);
+			txttextcolor = convertView.findViewById(R.id.txttextcolor);
+			txtbackcolor = convertView.findViewById(R.id.txtbackcolor);
+			delete = convertView.findViewById(R.id.buttonDelete);
+			update = convertView.findViewById(R.id.buttonUpdate);
+			relativeLayout=convertView.findViewById(R.id.relative);
+		}
+
+
+	}
+
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
